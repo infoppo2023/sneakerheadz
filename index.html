@@ -1241,37 +1241,30 @@ function getRooftopH(wx){
 }
 
 function spawnRoofCat(){
-  if(bgDayPhase<0.28||bgDayPhase>0.72)return false; // daytime only
   const type=Math.random()<0.40?'sleep':'walk';
-  // Pick a random x well within some shop (avoid near edges)
   const wx=Math.floor(Math.random()*shopWrap);
   const h=getRooftopH(wx);
-  // Walking cats move slowly left across the rooftop
-  const catDir=Math.random()<0.5?1:-1; // 1=move left (flip), -1=move right
+  const catDir=Math.random()<0.5?1:-1;
   const spd=type==='walk'?(0.15+Math.random()*0.25):0;
   roofCats.push({wx,h,type,spd,dir:catDir,ph:Math.random()*Math.PI*2,life:0,alpha:0});
-  return true;
 }
 
 function updateRoofCats(){
   const isDay=(bgDayPhase>0.28&&bgDayPhase<0.72);
   nextCatSpawn-=dt;
   if(nextCatSpawn<=0&&roofCats.length<10){
-    const spawned=spawnRoofCat();
-    // If spawn failed (night), retry quickly; if succeeded set normal interval
-    nextCatSpawn=spawned ? 140+Math.random()*280 : 20+Math.random()*20;
+    spawnRoofCat();
+    nextCatSpawn=140+Math.random()*280;
   }
   roofCats.forEach(c=>{
     c.life+=dt;
     c.ph+=0.055*dt;
     if(c.type==='walk') c.wx=((c.wx-c.spd*(c.dir||1)*dt)%shopWrap+shopWrap)%shopWrap;
-    // Fade in
-    if(c.life<60)c.alpha=c.life/60;
-    // Fade out if night comes
-    else if(!isDay)c.alpha=Math.max(0,c.alpha-0.02);
-    else c.alpha=Math.min(1,c.alpha+0.02);
+    // Fade in during day, fade out at night
+    if(isDay) c.alpha=Math.min(1,c.alpha+0.025*dt);
+    else c.alpha=Math.max(0,c.alpha-0.015*dt);
   });
-  roofCats=roofCats.filter(c=>c.alpha>0.01);
+  roofCats=roofCats.filter(c=>!(c.alpha<0.01&&!isDay));
 }
 
 function drawRoofCat(sx,sy,type,ph,alpha,dir=1){
@@ -2743,45 +2736,30 @@ function drawSneaker(s,t){
 
   // Value label removed per user request
 
-  // ── Key anatomical reference points ──
-  const soleBot = sy+sh;                   // ground
-  const soleTop = soleBot-8;               // rubber outsole top
+  // ── Key reference points ──
+  const soleBot = sy+sh;
+  const soleTop = soleBot-8;
   const midBot  = soleTop;
-  const midTop  = soleTop-7;               // foam midsole top
-  const bodyBot = midTop+1;                // leather upper starts here
-  // Ankle collar heights (high-cut profile)
-  const collarHeel = sy+2;                 // tallest at heel (left side)
+  const midTop  = soleTop-7;
+  const bodyBot = midTop+1;
+  const collarHeel = sy+2;
   const collarMid  = sy+sh*0.18;
-  const collarToe  = sy+sh*0.36;          // shortest at toe (right side)
-  // Toe nose protrudes slightly right
   const toeNX = sx+sw+3;
   const toeNY = bodyBot-sh*0.26;
 
-  // ── OUTSOLE — thick dark rubber with herringbone tread ──
-  ctx.save();
-  ctx.shadowColor='rgba(0,0,0,0.8)';ctx.shadowBlur=6;
+  // ── OUTSOLE ──
+  ctx.save();ctx.shadowColor='rgba(0,0,0,0.7)';ctx.shadowBlur=6;
   ctx.fillStyle='#111111';
   ctx.beginPath();
   ctx.moveTo(sx+2,soleTop);ctx.lineTo(sx+sw-1,soleTop);
   ctx.quadraticCurveTo(toeNX+3,soleTop+3,toeNX+1,soleBot-2);
   ctx.lineTo(sx+1,soleBot);
   ctx.quadraticCurveTo(sx-4,soleBot-1,sx+2,soleTop);
-  ctx.closePath();ctx.fill();
-  ctx.restore();
-  // Herringbone tread grooves
-  ctx.save();ctx.strokeStyle='rgba(255,255,255,0.12)';ctx.lineWidth=1.2;
-  for(let xi=sx+7;xi<sx+sw-3;xi+=6){
-    ctx.beginPath();ctx.moveTo(xi,soleTop+2);ctx.lineTo(xi+3,soleBot-1);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(xi+3,soleTop+2);ctx.lineTo(xi,soleBot-1);ctx.stroke();
-  }
-  ctx.restore();
-  // Outsole side wall (slightly lighter band)
-  ctx.fillStyle='rgba(60,60,60,0.7)';
-  ctx.beginPath();ctx.rect(sx+2,soleTop,sw-1,2);ctx.fill();
+  ctx.closePath();ctx.fill();ctx.restore();
 
-  // ── MIDSOLE — white foam with subtle contour ──
+  // ── MIDSOLE ──
   const midG=ctx.createLinearGradient(sx,midTop,sx,midBot);
-  midG.addColorStop(0,'#fafafa');midG.addColorStop(0.5,'#e8e8e8');midG.addColorStop(1,'#d4d4d4');
+  midG.addColorStop(0,'#fafafa');midG.addColorStop(1,'#d4d4d4');
   ctx.fillStyle=midG;
   ctx.beginPath();
   ctx.moveTo(sx+2,midTop);ctx.lineTo(sx+sw-1,midTop);
@@ -2789,17 +2767,11 @@ function drawSneaker(s,t){
   ctx.lineTo(sx+1,soleTop);
   ctx.quadraticCurveTo(sx-3,midTop+2,sx+2,midTop);
   ctx.closePath();ctx.fill();
-  // AIR JORDAN text on midsole
-  ctx.save();ctx.fillStyle='rgba(80,80,80,0.65)';ctx.font='bold 4px Arial';ctx.textAlign='center';
-  ctx.fillText('AIR JORDAN',sx+sw*0.42,midTop+4.5);ctx.restore();
-  // Midsole top edge
-  ctx.strokeStyle='#c8c8c8';ctx.lineWidth=0.6;
-  ctx.beginPath();ctx.moveTo(sx+2,midTop);ctx.lineTo(sx+sw-1,midTop);ctx.stroke();
 
-  // ── MAIN UPPER — leather body with realistic gradient ──
+  // ── MAIN UPPER ──
   const upG=ctx.createLinearGradient(sx,collarHeel,sx+sw*0.5,bodyBot);
-  upG.addColorStop(0,shine);upG.addColorStop(0.3,color);upG.addColorStop(0.75,accent);upG.addColorStop(1,accent+'aa');
-  ctx.save();ctx.shadowColor=color;ctx.shadowBlur=14;
+  upG.addColorStop(0,shine);upG.addColorStop(0.35,color);upG.addColorStop(1,accent);
+  ctx.save();ctx.shadowColor=color;ctx.shadowBlur=16;
   ctx.fillStyle=upG;
   ctx.beginPath();
   ctx.moveTo(sx+2,bodyBot);ctx.lineTo(sx+sw,bodyBot);
@@ -2807,149 +2779,33 @@ function drawSneaker(s,t){
   ctx.lineTo(sx+sw*0.60,collarMid);
   ctx.quadraticCurveTo(sx+sw*0.30,collarHeel+2,sx+3,collarHeel);
   ctx.quadraticCurveTo(sx-4,bodyBot-sh*0.22,sx+2,bodyBot);
-  ctx.closePath();ctx.fill();
-  ctx.restore();
+  ctx.closePath();ctx.fill();ctx.restore();
 
-  // ── LEATHER PANEL SEAM LINES (stitching detail) ──
-  // Vamp/quarter seam
-  ctx.save();ctx.strokeStyle='rgba(0,0,0,0.35)';ctx.lineWidth=1;ctx.setLineDash([2,2]);
-  ctx.beginPath();ctx.moveTo(sx+sw*0.55,bodyBot);ctx.lineTo(sx+sw*0.50,collarMid+4);ctx.stroke();
-  // Heel-to-collar seam
-  ctx.beginPath();ctx.moveTo(sx+sw*0.22,bodyBot);ctx.lineTo(sx+sw*0.20,collarHeel+6);ctx.stroke();
-  // Horizontal panel seam mid-shoe
-  ctx.beginPath();ctx.moveTo(sx+sw*0.22,bodyBot-sh*0.3);ctx.lineTo(sx+sw*0.55,bodyBot-sh*0.3);ctx.stroke();
-  ctx.setLineDash([]);ctx.restore();
-  // Fine dotted stitching along collar rim
-  ctx.save();ctx.strokeStyle=shine+'55';ctx.lineWidth=0.8;ctx.setLineDash([1.5,2.5]);
-  ctx.beginPath();ctx.moveTo(toeNX-2,toeNY+3);ctx.lineTo(sx+sw*0.60+1,collarMid+4);
-  ctx.quadraticCurveTo(sx+sw*0.30+1,collarHeel+6,sx+6,collarHeel+5);ctx.stroke();
-  ctx.setLineDash([]);ctx.restore();
-
-  // ── HEEL COUNTER (stiff reinforced back panel) ──
-  const hcG=ctx.createLinearGradient(sx,collarHeel,sx+sw*0.2,bodyBot);
-  hcG.addColorStop(0,accent);hcG.addColorStop(1,accent+'88');
-  ctx.fillStyle=hcG;ctx.globalAlpha=0.65;
-  ctx.beginPath();
-  ctx.moveTo(sx+2,bodyBot);ctx.quadraticCurveTo(sx-4,bodyBot-sh*0.22,sx+3,collarHeel);
-  ctx.lineTo(sx+sw*0.24,collarHeel+4);ctx.lineTo(sx+sw*0.20,bodyBot);
-  ctx.closePath();ctx.fill();
-  ctx.globalAlpha=1;
-  // Heel counter stitch border
-  ctx.save();ctx.strokeStyle='rgba(255,255,255,0.2)';ctx.lineWidth=0.7;ctx.setLineDash([1,2]);
-  ctx.beginPath();ctx.moveTo(sx+sw*0.20,bodyBot-2);ctx.lineTo(sx+sw*0.22,collarHeel+6);ctx.stroke();
-  ctx.setLineDash([]);ctx.restore();
-
-  // ── TOE CAP panel (front leather box) ──
-  ctx.fillStyle=accent;ctx.globalAlpha=0.48;
-  ctx.beginPath();
-  ctx.moveTo(sx+sw*0.68,bodyBot);ctx.lineTo(sx+sw,bodyBot);
-  ctx.quadraticCurveTo(toeNX+3,bodyBot-3,toeNX,toeNY);
-  ctx.lineTo(sx+sw*0.70,toeNY+sh*0.06);
-  ctx.closePath();ctx.fill();
-  ctx.globalAlpha=1;
-  // Toe cap stitching dots (perforations)
-  ctx.save();ctx.fillStyle='rgba(0,0,0,0.4)';
-  const perfY=bodyBot-sh*0.12;
-  for(let pi=0;pi<6;pi++){ctx.beginPath();ctx.arc(sx+sw*0.70+pi*4,perfY,0.9,0,Math.PI*2);ctx.fill();}
-  ctx.restore();
-
-  // ── ANKLE COLLAR padded rim ──
-  ctx.save();ctx.shadowColor='rgba(0,0,0,0.6)';ctx.shadowBlur=4;
-  ctx.strokeStyle='rgba(0,0,0,0.60)';ctx.lineWidth=4;ctx.lineCap='round';
+  // ── ANKLE COLLAR rim ──
+  ctx.save();ctx.strokeStyle='rgba(0,0,0,0.55)';ctx.lineWidth=4;ctx.lineCap='round';
   ctx.beginPath();ctx.moveTo(toeNX-1,toeNY);ctx.lineTo(sx+sw*0.60,collarMid);
   ctx.quadraticCurveTo(sx+sw*0.30,collarHeel+2,sx+3,collarHeel);ctx.stroke();
   ctx.restore();
 
-  // ── TONGUE (padded, white) ──
+  // ── TONGUE ──
   const tgX=sx+sw*0.30, tgW=sw*0.23;
   const tgTop=collarMid+1, tgBot=bodyBot-1;
   const tgG=ctx.createLinearGradient(tgX,tgTop,tgX+tgW,tgBot);
   tgG.addColorStop(0,'#f8f8f8');tgG.addColorStop(1,'#d8d8d8');
   ctx.fillStyle=tgG;
   ctx.beginPath();ctx.roundRect(tgX,tgTop,tgW,tgBot-tgTop,[4,4,1,1]);ctx.fill();
-  // Tongue center rib
-  ctx.strokeStyle='rgba(180,180,180,0.6)';ctx.lineWidth=0.8;
-  ctx.beginPath();ctx.moveTo(tgX+tgW/2,tgTop+2);ctx.lineTo(tgX+tgW/2,tgBot-2);ctx.stroke();
-  // Nike branding on tongue
-  ctx.save();ctx.fillStyle=accent;ctx.font='bold 5.5px Arial';ctx.textAlign='center';
-  ctx.shadowColor=accent;ctx.shadowBlur=3;
-  ctx.fillText('AIR',tgX+tgW/2,tgTop+8);
-  ctx.fillStyle=color;ctx.shadowColor=color;
-  ctx.fillText('J1',tgX+tgW/2,tgTop+15);
-  ctx.restore();
 
-  // ── LACES — horizontal criss-cross with bow knot at top ──
-  const lL=sx+sw*0.27, lR=sx+sw*0.68;
-  const lTop=toeNY+4, lBot=bodyBot-5;
-  const numL=5;
-  ctx.strokeStyle='#ffffff';ctx.lineWidth=1.6;ctx.lineCap='round';
-  for(let li=0;li<numL;li++){
-    const ly=lTop+(lBot-lTop)*(li/(numL-1));
-    // Criss-cross: alternate lace goes slightly diagonally
-    const offset=(li%2===0?2:-2);
-    ctx.beginPath();ctx.moveTo(lL,ly);ctx.lineTo(lR,ly+offset);ctx.stroke();
-    // Eyelet holes
-    ctx.fillStyle=accent+'cc';
-    ctx.beginPath();ctx.arc(lL,ly,2,0,Math.PI*2);ctx.fill();
-    ctx.beginPath();ctx.arc(lR,ly+offset,2,0,Math.PI*2);ctx.fill();
-    // Eyelet rim
-    ctx.strokeStyle='rgba(0,0,0,0.4)';ctx.lineWidth=0.7;
-    ctx.beginPath();ctx.arc(lL,ly,2,0,Math.PI*2);ctx.stroke();
-    ctx.beginPath();ctx.arc(lR,ly+offset,2,0,Math.PI*2);ctx.stroke();
-    ctx.strokeStyle='#ffffff';ctx.lineWidth=1.6;
-  }
-  // Bow knot at top of laces
-  const bowX=lL+(lR-lL)*0.5, bowY=lTop-3;
-  ctx.save();
-  // Bow loops (two leaf shapes)
-  ctx.fillStyle='rgba(255,255,255,0.92)';ctx.strokeStyle='rgba(200,200,200,0.7)';ctx.lineWidth=0.8;
-  ctx.beginPath();ctx.ellipse(bowX-5,bowY-3,5,3,0.5,0,Math.PI*2);ctx.fill();ctx.stroke();
-  ctx.beginPath();ctx.ellipse(bowX+5,bowY-3,5,3,-0.5,0,Math.PI*2);ctx.fill();ctx.stroke();
-  // Knot center
-  ctx.fillStyle='rgba(230,230,230,0.95)';ctx.beginPath();ctx.ellipse(bowX,bowY,2.5,2,0,0,Math.PI*2);ctx.fill();
-  // Loose lace ends
-  ctx.strokeStyle='rgba(255,255,255,0.85)';ctx.lineWidth=1.5;
-  ctx.beginPath();ctx.moveTo(bowX-2,bowY+2);ctx.quadraticCurveTo(bowX-8,bowY+8,bowX-6,bowY+13);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(bowX+2,bowY+2);ctx.quadraticCurveTo(bowX+8,bowY+8,bowX+5,bowY+13);ctx.stroke();
-  ctx.restore();
 
-  // ── NIKE SWOOSH (revised wing-style Jordan brand logo) ──
-  ctx.save();ctx.fillStyle='rgba(255,255,255,0.88)';
-  ctx.shadowColor='rgba(255,255,255,0.5)';ctx.shadowBlur=5;
-  const wX=sx+sw*0.07, wY=bodyBot-sh*0.30, wW=sw*0.44, wH=sh*0.20;
-  ctx.beginPath();
-  ctx.moveTo(wX,wY);
-  ctx.bezierCurveTo(wX+wW*0.18,wY-wH*1.0,wX+wW*0.72,wY-wH*0.55,wX+wW,wY-wH*0.08);
-  ctx.bezierCurveTo(wX+wW*0.68,wY+wH*0.22,wX+wW*0.22,wY+wH*0.18,wX,wY);
-  ctx.closePath();ctx.fill();
-  // Nike Swoosh outline
-  ctx.strokeStyle='rgba(0,0,0,0.2)';ctx.lineWidth=0.6;
-  ctx.beginPath();
-  ctx.moveTo(wX,wY);
-  ctx.bezierCurveTo(wX+wW*0.18,wY-wH*1.0,wX+wW*0.72,wY-wH*0.55,wX+wW,wY-wH*0.08);
-  ctx.bezierCurveTo(wX+wW*0.68,wY+wH*0.22,wX+wW*0.22,wY+wH*0.18,wX,wY);
-  ctx.closePath();ctx.stroke();
-  ctx.restore();
+  // ── SHINE highlight ──
+  const shG=ctx.createRadialGradient(sx+sw*0.20,collarHeel+10,0,sx+sw*0.20,collarHeel+10,10);
+  shG.addColorStop(0,'rgba(255,255,255,0.45)');shG.addColorStop(1,'rgba(255,255,255,0)');
+  ctx.fillStyle=shG;ctx.beginPath();ctx.ellipse(sx+sw*0.20,collarHeel+10,10,5,-0.3,0,Math.PI*2);ctx.fill();
 
-  // ── LEATHER SURFACE SHINE highlights ──
-  // Primary shine blob on upper heel
-  const sh1G=ctx.createRadialGradient(sx+sw*0.12,collarHeel+8,0,sx+sw*0.12,collarHeel+8,9);
-  sh1G.addColorStop(0,'rgba(255,255,255,0.55)');sh1G.addColorStop(1,'rgba(255,255,255,0)');
-  ctx.fillStyle=sh1G;ctx.beginPath();ctx.ellipse(sx+sw*0.12,collarHeel+8,9,5,-0.3,0,Math.PI*2);ctx.fill();
-  // Secondary shine on vamp
-  const sh2G=ctx.createRadialGradient(sx+sw*0.50,collarMid+8,0,sx+sw*0.50,collarMid+8,7);
-  sh2G.addColorStop(0,'rgba(255,255,255,0.35)');sh2G.addColorStop(1,'rgba(255,255,255,0)');
-  ctx.fillStyle=sh2G;ctx.beginPath();ctx.ellipse(sx+sw*0.50,collarMid+8,8,3.5,0.1,0,Math.PI*2);ctx.fill();
-  // Small toe box highlight
-  const sh3G=ctx.createRadialGradient(sx+sw*0.82,toeNY+6,0,sx+sw*0.82,toeNY+6,5);
-  sh3G.addColorStop(0,'rgba(255,255,255,0.4)');sh3G.addColorStop(1,'rgba(255,255,255,0)');
-  ctx.fillStyle=sh3G;ctx.beginPath();ctx.ellipse(sx+sw*0.82,toeNY+6,5,3,-0.2,0,Math.PI*2);ctx.fill();
-
-  // ── GOLD special: sparkle ★ + glow pulse ──
+  // ── GOLD sparkle ──
   if(id==='gold'){
     const gp=0.6+0.4*Math.abs(Math.sin(s.phase));
     ctx.save();ctx.shadowColor='#ffee00';ctx.shadowBlur=18*gp;
-    [[-10,-12],[12,-8],[-4,9],[13,4],[2,-18]].forEach(([dx,dy],di)=>{
+    [[-10,-12],[12,-8],[-4,9],[13,4],[2,-18]].forEach(([dx,dy])=>{
       const sp2=Math.abs(Math.sin(s.phase*2.2+dx));
       ctx.fillStyle=`rgba(255,235,60,${sp2*0.95})`;
       ctx.font=`${6+sp2*6}px sans-serif`;ctx.textAlign='center';
@@ -3216,7 +3072,63 @@ function drawIdle(t){
   ctx.font='11px monospace';ctx.fillStyle='rgba(255,200,230,0.75)';
   ctx.fillText('TAP TO PLAY',cbFx+cbW/2,cbY+42);
   ctx.globalAlpha=1;
+
+  // ── 操作方法はこちら ボタン ──
+  const hbW=220,hbH=30,hbY=cbY+cbH+14;
+  const hbX=Math.round(W/2-hbW/2);
+  helpBtn={x:hbX,y:hbY,w:hbW,h:hbH};
+  ctx.globalAlpha=0.75;
+  ctx.fillStyle='rgba(255,255,255,0.10)';
+  ctx.strokeStyle='rgba(255,255,255,0.35)';ctx.lineWidth=1;
+  ctx.beginPath();ctx.roundRect(hbX,hbY,hbW,hbH,8);ctx.fill();ctx.stroke();
+  ctx.globalAlpha=1;
+  ctx.fillStyle='rgba(255,255,255,0.85)';ctx.font='13px monospace';ctx.textAlign='center';
+  ctx.fillText('📖 ゲーム説明はこちら',W/2,hbY+20);
   ctx.textAlign='left';
+
+  // ── ヘルプオーバーレイ ──
+  if(showHelp){
+    const ovW=600,ovH=400,ovX=Math.round(W/2-ovW/2),ovY=Math.round(H/2-ovH/2);
+    ctx.save();
+    ctx.fillStyle='rgba(10,8,28,0.95)';
+    ctx.strokeStyle='rgba(255,105,180,0.6)';ctx.lineWidth=2;
+    ctx.beginPath();ctx.roundRect(ovX,ovY,ovW,ovH,16);ctx.fill();ctx.stroke();
+    // タイトル
+    ctx.fillStyle='#ffe000';ctx.font='bold 16px monospace';ctx.textAlign='center';
+    ctx.shadowColor='#ffe000';ctx.shadowBlur=8;
+    ctx.fillText('📖 ゲーム説明',W/2,ovY+36);
+    ctx.shadowBlur=0;
+    // 区切り線
+    ctx.strokeStyle='rgba(255,105,180,0.3)';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(ovX+32,ovY+48);ctx.lineTo(ovX+ovW-32,ovY+48);ctx.stroke();
+    // 説明行
+    const lines=[
+      ['🕹️','画面タップ / スペースキー(PC)','ジャンプ（3段ジャンプ可）',0],
+      ['👟','スニーカーGET','スコアアップ！色でpt変わる',-9],
+      ['🌀','渦巻きアイテム','SLOW MOTION発動',0],
+      ['👟','スニーカーラッシュアイテム','スニーカー大量出現！',0],
+      ['✕2','×2アイテム','スコア2倍タイム！',0],
+      ['🚧','障害物に当たる','ゲームオーバー',0],
+    ];
+    ctx.textAlign='center';
+    const lineStart=ovY+72, lineStep=48;
+    lines.forEach(([icon,act,desc,ox],i)=>{
+      const ry=lineStart+i*lineStep;
+      ctx.fillStyle='#ffffff';ctx.font='bold 13px monospace';
+      ctx.fillText(icon+' '+act,W/2+(ox||0),ry);
+      ctx.fillStyle='rgba(180,220,255,0.80)';ctx.font='11px monospace';
+      ctx.fillText(desc,W/2,ry+17);
+    });
+    // 閉じるボタン
+    const cbtnW=140,cbtnH=34,cbtnX=Math.round(W/2-70),cbtnY=ovY+ovH-50;
+    helpCloseBtn={x:cbtnX,y:cbtnY,w:cbtnW,h:cbtnH};
+    ctx.fillStyle='rgba(255,105,180,0.75)';
+    ctx.beginPath();ctx.roundRect(cbtnX,cbtnY,cbtnW,cbtnH,10);ctx.fill();
+    ctx.fillStyle='#fff';ctx.font='bold 13px monospace';ctx.textAlign='center';
+    ctx.fillText('✕ 閉じる',W/2,cbtnY+22);
+    ctx.restore();
+    ctx.textAlign='left';
+  }
 }
 
 // =====================================================
@@ -3232,6 +3144,9 @@ let charGender='M'; // 'M' or 'F'
 let charChosen=false; // true once user taps a char button; second tap on same starts game
 let charBtnM={x:0,y:0,w:0,h:0};
 let charBtnF={x:0,y:0,w:0,h:0};
+let helpBtn={x:0,y:0,w:0,h:0};
+let helpCloseBtn={x:0,y:0,w:0,h:0};
+let showHelp=false;
 // =====================================================
 //  Background Rats
 // =====================================================
@@ -3362,7 +3277,7 @@ function startGame(){
   if(state==='playing')return;
   initAudio();state='playing';frame=0;distanceMeter=0;distanceFloat=0;sneakerScore=0;scoreMultiplier=1;
   initShopLayout();initPoleLayout(); // new random layout each run
-  bgDayPhase=0.5; // start at midday so cats can spawn immediately
+  bgDayPhase=0.5;showHelp=false;
   roofCats=[];nextCatSpawn=0;
   roofRats=[];nextRatSpawn=0;
   bats=[];nextBatSpawn=300+Math.random()*600;
@@ -3392,6 +3307,11 @@ canvas.addEventListener('click',e=>{
     const r2=canvas.getBoundingClientRect();
     const s2X=canvas.width/r2.width,s2Y=canvas.height/r2.height;
     const ci2=(e.clientX-r2.left)*s2X,cy2=(e.clientY-r2.top)*s2Y;
+    if(showHelp){
+      if(ci2>=helpCloseBtn.x&&ci2<=helpCloseBtn.x+helpCloseBtn.w&&cy2>=helpCloseBtn.y&&cy2<=helpCloseBtn.y+helpCloseBtn.h){showHelp=false;}
+      return;
+    }
+    if(ci2>=helpBtn.x&&ci2<=helpBtn.x+helpBtn.w&&cy2>=helpBtn.y&&cy2<=helpBtn.y+helpBtn.h){showHelp=true;return;}
     if(ci2>=charBtnM.x&&ci2<=charBtnM.x+charBtnM.w&&cy2>=charBtnM.y&&cy2<=charBtnM.y+charBtnM.h){if(charGender==='M'&&charChosen){startGame();}else{charGender='M';charChosen=true;}return;}
     if(ci2>=charBtnF.x&&ci2<=charBtnF.x+charBtnF.w&&cy2>=charBtnF.y&&cy2<=charBtnF.y+charBtnF.h){if(charGender==='F'&&charChosen){startGame();}else{charGender='F';charChosen=true;}return;}
     return;
@@ -3404,10 +3324,12 @@ canvas.addEventListener('click',e=>{
     if(retryBtn.active&&cx>=retryBtn.x&&cx<=retryBtn.x+retryBtn.w&&cy>=retryBtn.y&&cy<=retryBtn.y+retryBtn.h){startGame();return;}
     if(snsLineBtn.active||snsXBtn.active){
       const ds=getDisplayScore();
-      const shareText=encodeURIComponent('SNEAKERHEADZ in \u88CF\u539F\u3067'+ds+'pts\uFF01 #SNEAKERHEADZ #\u88CF\u539F');
-      if(snsLineBtn.active&&cx>=snsLineBtn.x&&cx<=snsLineBtn.x+snsLineBtn.w&&cy>=snsLineBtn.y&&cy<=snsLineBtn.y+snsLineBtn.h){window.open('https://line.me/R/msg/text/?'+shareText,'_blank');return;}
-      if(snsXBtn.active&&cx>=snsXBtn.x&&cx<=snsXBtn.x+snsXBtn.w&&cy>=snsXBtn.y&&cy<=snsXBtn.y+snsXBtn.h){window.open('https://x.com/intent/tweet?text='+shareText,'_blank');return;}
+      const lineText=encodeURIComponent('SNEAKERHEADZ in \u88CF\u539F\u3067'+ds+'pts\uFF01\n\u6700\u5F37\u306ESNEAKERHEADZ\u3092\u76EE\u6307\u305D\u3046\uFF01\ninfoppo2023.github.io/sneakerheadz/');
+      const xText=encodeURIComponent('SNEAKERHEADZ in \u88CF\u539F\u3067'+ds+'pts\uFF01\n\u6700\u5F37\u306ESNEAKERHEADZ\u3092\u76EE\u6307\u305D\u3046\uFF01\ninfoppo2023.github.io/sneakerheadz/\n#SNEAKERHEADZIN\u88CF\u539F\n#GAME');
+      if(snsLineBtn.active&&cx>=snsLineBtn.x&&cx<=snsLineBtn.x+snsLineBtn.w&&cy>=snsLineBtn.y&&cy<=snsLineBtn.y+snsLineBtn.h){window.open('https://line.me/R/msg/text/?'+lineText,'_blank');return;}
+      if(snsXBtn.active&&cx>=snsXBtn.x&&cx<=snsXBtn.x+snsXBtn.w&&cy>=snsXBtn.y&&cy<=snsXBtn.y+snsXBtn.h){window.open('https://x.com/intent/tweet?text='+xText,'_blank');return;}
     }
+    return; // dead state: ignore taps outside buttons
   }
   handleInput();
 });
@@ -3417,6 +3339,11 @@ canvas.addEventListener('touchstart',e=>{e.preventDefault();
     const s3X=canvas.width/r3.width,s3Y=canvas.height/r3.height;
     const t3=e.touches[0];
     const ci3=(t3.clientX-r3.left)*s3X,cy3=(t3.clientY-r3.top)*s3Y;
+    if(showHelp){
+      if(ci3>=helpCloseBtn.x&&ci3<=helpCloseBtn.x+helpCloseBtn.w&&cy3>=helpCloseBtn.y&&cy3<=helpCloseBtn.y+helpCloseBtn.h){showHelp=false;}
+      return;
+    }
+    if(ci3>=helpBtn.x&&ci3<=helpBtn.x+helpBtn.w&&cy3>=helpBtn.y&&cy3<=helpBtn.y+helpBtn.h){showHelp=true;return;}
     if(ci3>=charBtnM.x&&ci3<=charBtnM.x+charBtnM.w&&cy3>=charBtnM.y&&cy3<=charBtnM.y+charBtnM.h){if(charGender==='M'&&charChosen){startGame();}else{charGender='M';charChosen=true;}return;}
     if(ci3>=charBtnF.x&&ci3<=charBtnF.x+charBtnF.w&&cy3>=charBtnF.y&&cy3<=charBtnF.y+charBtnF.h){if(charGender==='F'&&charChosen){startGame();}else{charGender='F';charChosen=true;}return;}
     return;
@@ -3430,10 +3357,12 @@ canvas.addEventListener('touchstart',e=>{e.preventDefault();
     if(retryBtn.active&&cx>=retryBtn.x&&cx<=retryBtn.x+retryBtn.w&&cy>=retryBtn.y&&cy<=retryBtn.y+retryBtn.h){startGame();return;}
     if(snsLineBtn.active||snsXBtn.active){
       const ds=getDisplayScore();
-      const shareText=encodeURIComponent('SNEAKERHEADZ in \u88CF\u539F\u3067'+ds+'pts\uFF01 #SNEAKERHEADZ #\u88CF\u539F');
-      if(snsLineBtn.active&&cx>=snsLineBtn.x&&cx<=snsLineBtn.x+snsLineBtn.w&&cy>=snsLineBtn.y&&cy<=snsLineBtn.y+snsLineBtn.h){window.open('https://line.me/R/msg/text/?'+shareText,'_blank');return;}
-      if(snsXBtn.active&&cx>=snsXBtn.x&&cx<=snsXBtn.x+snsXBtn.w&&cy>=snsXBtn.y&&cy<=snsXBtn.y+snsXBtn.h){window.open('https://x.com/intent/tweet?text='+shareText,'_blank');return;}
+      const lineText=encodeURIComponent('SNEAKERHEADZ in \u88CF\u539F\u3067'+ds+'pts\uFF01\n\u6700\u5F37\u306ESNEAKERHEADZ\u3092\u76EE\u6307\u305D\u3046\uFF01\ninfoppo2023.github.io/sneakerheadz/');
+      const xText=encodeURIComponent('SNEAKERHEADZ in \u88CF\u539F\u3067'+ds+'pts\uFF01\n\u6700\u5F37\u306ESNEAKERHEADZ\u3092\u76EE\u6307\u305D\u3046\uFF01\ninfoppo2023.github.io/sneakerheadz/\n#SNEAKERHEADZIN\u88CF\u539F\n#GAME');
+      if(snsLineBtn.active&&cx>=snsLineBtn.x&&cx<=snsLineBtn.x+snsLineBtn.w&&cy>=snsLineBtn.y&&cy<=snsLineBtn.y+snsLineBtn.h){window.open('https://line.me/R/msg/text/?'+lineText,'_blank');return;}
+      if(snsXBtn.active&&cx>=snsXBtn.x&&cx<=snsXBtn.x+snsXBtn.w&&cy>=snsXBtn.y&&cy<=snsXBtn.y+snsXBtn.h){window.open('https://x.com/intent/tweet?text='+xText,'_blank');return;}
     }
+    return; // dead state: ignore taps outside buttons
   }
   handleInput();},{passive:false});
 jumpBtn.addEventListener('touchstart',e=>{e.preventDefault();handleInput();},{passive:false});
