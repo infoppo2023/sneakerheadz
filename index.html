@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>SNEAKERHEADZ in 裏原</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -10,8 +10,12 @@
     body {
       background:#080810;
       display:flex; flex-direction:column; align-items:center; justify-content:center;
-      min-height:100vh; font-family:'Courier New',monospace; overflow:hidden;
+      min-height:100vh; min-height:100svh;
+      font-family:'Courier New',monospace; overflow:hidden;
       touch-action:none;
+      /* iPhone safe area (notch / home indicator) */
+      padding-bottom:env(safe-area-inset-bottom);
+      padding-top:env(safe-area-inset-top);
     }
     h1 {
       color:#fff; font-size:clamp(0.75rem,3vw,1.6rem); letter-spacing:clamp(1px,0.8vw,6px);
@@ -59,7 +63,7 @@
     }
     /* Jump button — always on touch devices, bottom-right */
     #jumpBtn {
-      display:none; position:fixed; bottom:20px; right:16px;
+      display:none; position:fixed; bottom:calc(20px + env(safe-area-inset-bottom)); right:16px;
       width:86px; height:86px; border-radius:50%;
       background:rgba(255,105,180,0.22); border:2.5px solid rgba(255,105,180,0.7);
       color:#fff; font-size:32px; line-height:86px; text-align:center;
@@ -3294,9 +3298,36 @@ function startGame(){
   updateJumpDots();if(bgmStartTimeout){clearTimeout(bgmStartTimeout);bgmStartTimeout=null;}stopBGM();startBGM('play');
 }
 function openURL(url){
-  // In-app browsers (LINE, Slack, etc.) block window.open and <a>.click().
-  // Use location.href on mobile for reliable navigation.
-  if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
+  const ua=navigator.userAgent;
+  const isIOS=/iPhone|iPad|iPod/i.test(ua);
+  const isAndroid=/Android/i.test(ua);
+  const isMobile=isIOS||isAndroid;
+
+  // X (Twitter) share: try to open the native app first
+  if(url.indexOf('x.com/intent/tweet')>-1&&isMobile){
+    const m=url.match(/[?&]text=([^&]*)/);
+    const textParam=m?m[1]:'';
+    if(isAndroid){
+      // Android: intent URL opens X app directly; falls back to browser if not installed
+      location.href='intent://post?message='+textParam
+        +'#Intent;scheme=twitter;package=com.twitter.android;'
+        +'S.browser_fallback_url='+encodeURIComponent('https://x.com/intent/tweet?text='+textParam)+';end';
+    } else {
+      // iOS: try twitter:// scheme (opens X app); fallback to web after 1.5s if not installed
+      const before=Date.now();
+      location.href='twitter://post?message='+textParam;
+      setTimeout(function(){
+        // Only redirect if the page is still active (app didn't take over)
+        if(Date.now()-before<2000&&!document.hidden){
+          location.href='https://x.com/intent/tweet?text='+textParam;
+        }
+      },1500);
+    }
+    return;
+  }
+
+  // LINE and all other URLs: location.href works in all in-app browsers
+  if(isMobile){
     location.href=url;
   } else {
     const a=document.createElement('a');
@@ -3382,12 +3413,15 @@ jumpBtn.addEventListener('click',handleInput);
 // ── Mobile: canvas auto-resize to fit viewport ──────────────────
 const rotateOverlay=document.getElementById('rotateOverlay');
 function resizeCanvas(){
+  // visualViewport gives the true visible area on Safari iOS (excludes browser chrome)
+  const vw=window.visualViewport?window.visualViewport.width:window.innerWidth;
+  const vh=window.visualViewport?window.visualViewport.height:window.innerHeight;
   const hudH=(document.getElementById('hud').offsetHeight||36)
            +(document.querySelector('h1').offsetHeight||24)
            +(document.getElementById('message').offsetHeight||18)+20;
-  const availW=window.innerWidth-8;
-  const availH=window.innerHeight-hudH;
-  // Fit by width or height, whichever is smaller
+  const availW=vw-8;
+  const availH=vh-hudH;
+  // Fit by width or height, whichever is the binding constraint
   const byW=availW;
   const byH=availH*(canvas.width/canvas.height);
   const cssW=Math.min(canvas.width,byW,byH);
@@ -3408,6 +3442,11 @@ function checkOrientation(){
 }
 window.addEventListener('resize',checkOrientation);
 window.addEventListener('orientationchange',()=>setTimeout(checkOrientation,200));
+// visualViewport fires when Safari toolbar shows/hides (more reliable than window.resize on iOS)
+if(window.visualViewport){
+  window.visualViewport.addEventListener('resize',checkOrientation);
+  window.visualViewport.addEventListener('scroll',checkOrientation);
+}
 checkOrientation();
 
 // ── Swipe-up to jump ────────────────────────────────────────────
