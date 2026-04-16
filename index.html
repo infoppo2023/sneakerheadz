@@ -3294,9 +3294,15 @@ function startGame(){
   updateJumpDots();if(bgmStartTimeout){clearTimeout(bgmStartTimeout);bgmStartTimeout=null;}stopBGM();startBGM('play');
 }
 function openURL(url){
-  const a=document.createElement('a');
-  a.href=url;a.target='_blank';a.rel='noopener noreferrer';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  // In-app browsers (LINE, Slack, etc.) block window.open and <a>.click().
+  // Use location.href on mobile for reliable navigation.
+  if(/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)){
+    location.href=url;
+  } else {
+    const a=document.createElement('a');
+    a.href=url;a.target='_blank';a.rel='noopener noreferrer';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+  }
 }
 function handleInput(){
   if(state==='idle'){
