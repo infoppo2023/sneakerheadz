@@ -3293,6 +3293,11 @@ function startGame(){
   messageEl.textContent='';
   updateJumpDots();if(bgmStartTimeout){clearTimeout(bgmStartTimeout);bgmStartTimeout=null;}stopBGM();startBGM('play');
 }
+function openURL(url){
+  const a=document.createElement('a');
+  a.href=url;a.target='_blank';a.rel='noopener noreferrer';
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+}
 function handleInput(){
   if(state==='idle'){
     if(!audioCtx){initAudio();startBGM('title');return;}
@@ -3326,8 +3331,8 @@ canvas.addEventListener('click',e=>{
       const ds=getDisplayScore();
       const lineText=encodeURIComponent('SNEAKERHEADZ in \u88CF\u539F\u3067'+ds+'pts\uFF01\n\u6700\u5F37\u306ESNEAKERHEADZ\u3092\u76EE\u6307\u305D\u3046\uFF01\ninfoppo2023.github.io/sneakerheadz/');
       const xText=encodeURIComponent('SNEAKERHEADZ in \u88CF\u539F\u3067'+ds+'pts\uFF01\n\u6700\u5F37\u306ESNEAKERHEADZ\u3092\u76EE\u6307\u305D\u3046\uFF01\ninfoppo2023.github.io/sneakerheadz/\n#SNEAKERHEADZIN\u88CF\u539F\n#GAME');
-      if(snsLineBtn.active&&cx>=snsLineBtn.x&&cx<=snsLineBtn.x+snsLineBtn.w&&cy>=snsLineBtn.y&&cy<=snsLineBtn.y+snsLineBtn.h){window.open('https://line.me/R/msg/text/?'+lineText,'_blank');return;}
-      if(snsXBtn.active&&cx>=snsXBtn.x&&cx<=snsXBtn.x+snsXBtn.w&&cy>=snsXBtn.y&&cy<=snsXBtn.y+snsXBtn.h){window.open('https://x.com/intent/tweet?text='+xText,'_blank');return;}
+      if(snsLineBtn.active&&cx>=snsLineBtn.x&&cx<=snsLineBtn.x+snsLineBtn.w&&cy>=snsLineBtn.y&&cy<=snsLineBtn.y+snsLineBtn.h){openURL('https://line.me/R/msg/text/?'+lineText);return;}
+      if(snsXBtn.active&&cx>=snsXBtn.x&&cx<=snsXBtn.x+snsXBtn.w&&cy>=snsXBtn.y&&cy<=snsXBtn.y+snsXBtn.h){openURL('https://x.com/intent/tweet?text='+xText);return;}
     }
     return; // dead state: ignore taps outside buttons
   }
@@ -3359,8 +3364,8 @@ canvas.addEventListener('touchstart',e=>{e.preventDefault();
       const ds=getDisplayScore();
       const lineText=encodeURIComponent('SNEAKERHEADZ in \u88CF\u539F\u3067'+ds+'pts\uFF01\n\u6700\u5F37\u306ESNEAKERHEADZ\u3092\u76EE\u6307\u305D\u3046\uFF01\ninfoppo2023.github.io/sneakerheadz/');
       const xText=encodeURIComponent('SNEAKERHEADZ in \u88CF\u539F\u3067'+ds+'pts\uFF01\n\u6700\u5F37\u306ESNEAKERHEADZ\u3092\u76EE\u6307\u305D\u3046\uFF01\ninfoppo2023.github.io/sneakerheadz/\n#SNEAKERHEADZIN\u88CF\u539F\n#GAME');
-      if(snsLineBtn.active&&cx>=snsLineBtn.x&&cx<=snsLineBtn.x+snsLineBtn.w&&cy>=snsLineBtn.y&&cy<=snsLineBtn.y+snsLineBtn.h){window.open('https://line.me/R/msg/text/?'+lineText,'_blank');return;}
-      if(snsXBtn.active&&cx>=snsXBtn.x&&cx<=snsXBtn.x+snsXBtn.w&&cy>=snsXBtn.y&&cy<=snsXBtn.y+snsXBtn.h){window.open('https://x.com/intent/tweet?text='+xText,'_blank');return;}
+      if(snsLineBtn.active&&cx>=snsLineBtn.x&&cx<=snsLineBtn.x+snsLineBtn.w&&cy>=snsLineBtn.y&&cy<=snsLineBtn.y+snsLineBtn.h){openURL('https://line.me/R/msg/text/?'+lineText);return;}
+      if(snsXBtn.active&&cx>=snsXBtn.x&&cx<=snsXBtn.x+snsXBtn.w&&cy>=snsXBtn.y&&cy<=snsXBtn.y+snsXBtn.h){openURL('https://x.com/intent/tweet?text='+xText);return;}
     }
     return; // dead state: ignore taps outside buttons
   }
